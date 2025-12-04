@@ -269,3 +269,143 @@ plt.ylabel("|rho_cv|")
 plt.suptitle(f"Single-k Evolution at k=({kx0:.2e},{ky0:.2e})")
 plt.tight_layout()
 plt.show()
+
+
+# ----------------- Plotting helper functions -----------------
+def plot_eigen_energies_kx(kx_vals, ky=0.0, ax=None):
+
+    kx_vals = np.array(kx_vals)
+    E = np.zeros((2, kx_vals.size))
+    for i,kx in enumerate(kx_vals):
+        vals, _ = eig_k(kx, ky)
+        E[:, i] = vals
+
+    if ax is None:
+        plt.figure()
+        ax = plt.gca()
+
+    ax.plot(kx_vals, E[0,:]/e, label='Valence')
+    ax.plot(kx_vals, E[1,:]/e, label='Conduction')
+    ax.set_xlabel('kx (1/m)')
+    ax.set_ylabel('Energy (eV)')
+    ax.set_title(f'Eigen energies vs kx (ky={ky:.2e})')
+    ax.legend()
+    ax.grid(True)
+    return ax
+
+
+def plot_dipole_interband_kx(kx_vals, ky=0.0):
+
+    kx_vals = np.array(kx_vals)
+    dx = np.zeros(kx_vals.size, dtype=complex)
+    dy = np.zeros(kx_vals.size, dtype=complex)
+    for i,kx in enumerate(kx_vals):
+        d = dipole_interband(kx, ky)
+        dx[i], dy[i] = d[0], d[1]
+
+    plt.figure()
+    plt.plot(kx_vals, dx.real, label='Re d_x')
+    plt.plot(kx_vals, dx.imag, label='Im d_x')
+    plt.plot(kx_vals, dy.real, '--', label='Re d_y')
+    plt.plot(kx_vals, dy.imag, '--', label='Im d_y')
+    plt.xlabel('kx (1/m)')
+    plt.ylabel('Dipole (m)')
+    plt.title(f'Interband dipole vs kx (ky={ky:.2e})')
+    plt.legend()
+    plt.grid(True)
+    return dx, dy
+
+
+def plot_velocity_elements_kx(kx_vals, ky=0.0):
+
+    kx_vals = np.array(kx_vals)
+    n = kx_vals.size
+    vx_00 = np.zeros(n, dtype=float)
+    vx_11 = np.zeros(n, dtype=float)
+    vx_01 = np.zeros(n, dtype=float)
+
+    vy_00 = np.zeros(n, dtype=float)
+    vy_11 = np.zeros(n, dtype=float)
+    vy_01 = np.zeros(n, dtype=float)
+
+    for i,kx in enumerate(kx_vals):
+        vmat_x, vmat_y = vel_matrix(kx, ky)
+        vx_00[i] = abs(vmat_x[0,0])
+        vx_11[i] = abs(vmat_x[1,1])
+        vx_01[i] = abs(vmat_x[0,1])
+
+        vy_00[i] = abs(vmat_y[0,0])
+        vy_11[i] = abs(vmat_y[1,1])
+        vy_01[i] = abs(vmat_y[0,1])
+
+    plt.figure()
+    plt.plot(kx_vals, vx_00, label='|v_x 00|')
+    plt.plot(kx_vals, vx_11, label='|v_x 11|')
+    plt.plot(kx_vals, vx_01, label='|v_x 01|')
+    plt.xlabel('kx (1/m)')
+    plt.ylabel('Velocity (m/s)')
+    plt.title(f'Velocity matrix elements (v_x) vs kx (ky={ky:.2e})')
+    plt.legend()
+    plt.grid(True)
+
+    plt.figure()
+    plt.plot(kx_vals, vy_00, label='|v_y 00|')
+    plt.plot(kx_vals, vy_11, label='|v_y 11|')
+    plt.plot(kx_vals, vy_01, label='|v_y 01|')
+    plt.xlabel('kx (1/m)')
+    plt.ylabel('Velocity (m/s)')
+    plt.title(f'Velocity matrix elements (v_y) vs kx (ky={ky:.2e})')
+    plt.legend()
+    plt.grid(True)
+
+    return (vx_00, vx_11, vx_01), (vy_00, vy_11, vy_01)
+
+
+def plot_pulse(time_array=None, A0_in=None, omega_in=None, R_in=None, theta_in=None, tau_in=None, t0_in=None):
+
+    if time_array is None:
+        time_array = time
+    A0_l = A0 if A0_in is None else A0_in
+    omega_l = omega if omega_in is None else omega_in
+    R_l = R if R_in is None else R_in
+    theta_l = theta if theta_in is None else theta_in
+    tau_l = tau if tau_in is None else tau_in
+    t0_l = t0 if t0_in is None else t0_in
+
+    A_t = np.zeros((2, len(time_array)))
+    E_t = np.zeros((2, len(time_array)))
+    for i,t in enumerate(time_array):
+        A_vec, E_vec = A_and_E(t, A0_l, omega_l, R_l, theta_l, tau_l, t0_l)
+        A_t[:,i] = A_vec
+        E_t[:,i] = E_vec
+
+    plt.figure()
+    plt.plot(time_array*1e15, A_t[0,:], label='A_x')
+    plt.plot(time_array*1e15, A_t[1,:], label='A_y')
+    plt.xlabel('t (fs)')
+    plt.ylabel('A (V·s/m)')
+    plt.title('Vector potential A(t)')
+    plt.legend()
+    plt.grid(True)
+
+    plt.figure()
+    plt.plot(time_array*1e15, E_t[0,:], label='E_x')
+    plt.plot(time_array*1e15, E_t[1,:], label='E_y')
+    plt.xlabel('t (fs)')
+    plt.ylabel('E (V/m)')
+    plt.title('Electric field E(t)')
+    plt.legend()
+    plt.grid(True)
+
+    return A_t, E_t
+
+kmax = 4*np.pi/(3*a)
+kx_vals = np.linspace(kx0 - kmax, kx0 + kmax, 501)
+
+plot_eigen_energies_kx(kx_vals, ky=ky0)
+plot_dipole_interband_kx(kx_vals, ky=ky0)
+plot_velocity_elements_kx(kx_vals, ky=ky0)
+plot_pulse()
+
+plt.show()
+
